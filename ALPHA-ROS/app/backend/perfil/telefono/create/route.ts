@@ -87,8 +87,10 @@ export async function POST(req: Request) {
       const existeActivo = await tx.usuarioTelefono.findFirst({
         where: {
           id_usuario,
+          Telefono: {
           id_telefono: telefono.id_telefono,
         },
+      },
       });
 
       if (existeActivo) {
