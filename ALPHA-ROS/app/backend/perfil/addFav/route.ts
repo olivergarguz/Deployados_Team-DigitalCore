@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
       data: {
         id_usuario,
         id_publicacion: Number(id_publicacion),
-        fecha_add: new Date(), // now()
       },
     });
 
