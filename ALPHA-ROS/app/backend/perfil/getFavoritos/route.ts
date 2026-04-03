@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     const favoritos = await prisma.favorito.findMany({
       where: { id_usuario },
-      orderBy: { fecha_add: "desc" },
+      orderBy: { id_publicacion: "desc" },
       include: {
         Publicacion: {
           include: {
@@ -42,7 +42,6 @@ export async function GET(req: NextRequest) {
       zona: fav.Publicacion.Zona?.nombre_zona ?? "Sin zona",
       tipo: fav.Publicacion.TipoInmueble?.nombre_inmueble ?? "Sin tipo",
       imagen: fav.Publicacion.Imagen[0]?.url_imagen ?? null,
-      fecha_add: fav.fecha_add,
     }));
 
     return NextResponse.json({ data }, { status: 200 });
