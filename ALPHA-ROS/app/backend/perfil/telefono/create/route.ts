@@ -61,7 +61,6 @@ export async function POST(req: Request) {
       const cantidadActivos = await tx.usuarioTelefono.count({
         where: {
           id_usuario,
-          estado: 1,
         },
       });
 
@@ -89,7 +88,6 @@ export async function POST(req: Request) {
         where: {
           id_usuario,
           id_telefono: telefono.id_telefono,
-          estado: 1,
         },
       });
 
@@ -101,7 +99,6 @@ export async function POST(req: Request) {
         data: {
           id_usuario,
           id_telefono: telefono.id_telefono,
-          estado: 1,
         },
       });
 
