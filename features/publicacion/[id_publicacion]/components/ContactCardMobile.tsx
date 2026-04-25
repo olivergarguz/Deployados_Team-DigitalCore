@@ -18,7 +18,7 @@ import { ContactoProps } from "./ContactCard";
 export const ContactCardMobile = ({ objPropietario, strTituloInmueble }: ContactoProps) => {
   const strNombreCompleto = `${objPropietario.strNombres} ${objPropietario.strApellidos}`.trim();
   const strMensajeWs = `Hola, estoy interesado en tu propiedad "${strTituloInmueble}" publicada en PropBol.`;
-  const strUrlCorreo = `https://mail.google.com/mail/?view=cm&fs=1&to=${objPropietario.strEmail}&su=Consulta sobre propiedad: ${encodeURIComponent(strTituloInmueble)}`;
+  const strUrlCorreo = `mailto:${objPropietario.strEmail}?subject=Consulta sobre propiedad: ${encodeURIComponent(strTituloInmueble)}`;
   return (
     <section className="block lg:hidden bg-white/40 backdrop-blur-sm p-6 sm:p-8 rounded-3xl shadow-sm border border-black/5 mb-8 font-sans">
       {/* Título Alineado a la Izquierda para coincidir con "Descripción" */}

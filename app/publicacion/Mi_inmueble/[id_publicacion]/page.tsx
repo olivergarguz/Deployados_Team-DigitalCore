@@ -167,7 +167,7 @@ export default async function PerfilInmueblePage({
         <PropertyDetails
           objInfo={{
             strTipoInmueble:       objPerfil.TipoInmueble?.nombre_inmueble                   ?? "—",
-            strTipoOperacion:      objPerfil.TipoOperacion?.nombre_operacion                 ?? "—",
+            strTipoOperacion:      objPerfil.TipoOperacion?.nombre_operacion === "Compra" ? "Venta" : (objPerfil.TipoOperacion?.nombre_operacion ?? "—"),
             strDepartamento:       objPerfil.Ubicacion?.Ciudad?.nombre_ciudad                ?? "—",
             strZona:               objPerfil.Ubicacion?.zona                                 ?? "—",
             strEstadoConstruccion: objPerfil.EstadoConstruccion?.nombre_estado_construccion  ?? "—",
