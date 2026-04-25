@@ -31,6 +31,14 @@
       - Botón "+ Agregar" en el header redirige a /publicaciones/nueva
       - @param {id_usuario} - ID del usuario autenticado pasado desde page.tsx
 */
+/*
+ * Dev: Gustavo Montaño
+ * Fecha: 25/04/2026
+ * Update: Fix de modales(gratuitos y de planes) y adición de limpieza de sessionStorage en botón "Agregar".
+ * Funcionalidad: Vista de modales segun el plan
+ - @param {PublicacionesViewProps} id_usuario - ID del usuario actual autenticado.
+ - @return {JSX.Element} Interfaz de lista de publicaciones y modales.
+ */
 
 "use client";
 import { Button } from "@/components/ui/button";
@@ -42,7 +50,7 @@ import PublicacionCard, { Publicacion } from "./publicacion-card";
 import { useAuth } from "@/app/auth/AuthContext";
 import { verificarEstadoPublicacion } from "@/features/publicacion/modal/action";
 import FreePublicationLimitModal from "@/features/publicacion/components/FreePublicationLimitModal";
-
+import PlanLimitModal from "@/features/publicacion/components/PlanLimitModal";
 interface PublicacionesViewProps {
   id_usuario: string;
 }
@@ -62,7 +70,8 @@ export default function PublicacionesView({
   const [eliminando, setEliminando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paginaActual, setPaginaActual] = useState(1);
-  const [bolShowModal, setBolShowModal] = useState(false);
+  const [bolShowModalGratuito, setBolShowModalGratuito] = useState(false);
+  const [bolShowModalPlan, setBolShowModalPlan] = useState(false);
   const [bolChecking,  setBolChecking]  = useState(false);
 
   useEffect(() => {
@@ -141,11 +150,44 @@ export default function PublicacionesView({
     try {
       const objEstado = await verificarEstadoPublicacion(user.id);
       if (objEstado.bolLimiteAlcanzado) {
-        setBolShowModal(true);
-      } else {
-        router.push("/publicacion/formularioPublicacion");
+        if (objEstado.strTipoLimite === "plan") {
+          setBolShowModalPlan(true);
+        } else {
+          setBolShowModalGratuito(true);
+        }
+        return; // Salimos de la función si alcanzó el límite
       }
+      // FIX: Limpiar las llaves del sessionStorage del Formulario Dinámico
+      const KEYS_TO_CLEAN = [
+        'publicacion_currentStep', 
+        'publicacion_completedSteps', 
+        'datosAviso', 
+        'categoriaYEstado', 
+        'ubicacion', 
+        'caracteristicasDetalle', 
+        'imagenesPropiedad_interacted', 
+        'caracteristicasImagenesPreview', 
+        'caracteristicasImagenesNombres', 
+        'videoPropiedad', 
+        'descripcionPropiedad', 
+        'imagenesIniciales'
+      ];
+      KEYS_TO_CLEAN.forEach(k => { 
+        try { sessionStorage.removeItem(k) } catch { } 
+      });
+      router.push("/publicacion/formularioPublicacion"); 
     } catch {
+      // FIX: Limpiamos también en caso de error por seguridad antes de redirigir
+      const KEYS_TO_CLEAN = [
+        'publicacion_currentStep', 'publicacion_completedSteps', 'datosAviso', 
+        'categoriaYEstado', 'ubicacion', 'caracteristicasDetalle', 
+        'imagenesPropiedad_interacted', 'caracteristicasImagenesPreview', 
+        'caracteristicasImagenesNombres', 'videoPropiedad', 
+        'descripcionPropiedad', 'imagenesIniciales'
+      ];
+      KEYS_TO_CLEAN.forEach(k => { 
+        try { sessionStorage.removeItem(k) } catch { } 
+      });
       router.push("/publicacion/formularioPublicacion");
     } finally {
       setBolChecking(false);
@@ -313,8 +355,13 @@ export default function PublicacionesView({
 
       {/* Modal límite de publicaciones gratuitas */}
       <FreePublicationLimitModal
-        bolOpen={bolShowModal}
-        onBack={() => setBolShowModal(false)}
+        bolOpen={bolShowModalGratuito}
+        onBack={() => setBolShowModalGratuito(false)}
+      />
+      {/* Modal límite de plan activo excedido */}
+      <PlanLimitModal
+        bolOpen={bolShowModalPlan}
+        onBack={() => setBolShowModalPlan(false)}
       />
     </>
   );

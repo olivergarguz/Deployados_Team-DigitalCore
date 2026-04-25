@@ -36,7 +36,8 @@ export const PropertyActions = () => {
 
   const handleNuevaPublicacion = async () => {
     if (!user) {
-      router.push("/publicacion/informacion-comercial");
+      // ✅ FIX: Ruta correcta del nuevo formulario dinámico
+      router.push("/publicacion/formularioPublicacion");
       return;
     }
 
@@ -45,7 +46,6 @@ export const PropertyActions = () => {
       const objEstado = await verificarEstadoPublicacion(user.id);
 
       if (objEstado.bolLimiteAlcanzado) {
-        // Decide qué modal mostrar según el tipo de límite
         if (objEstado.strTipoLimite === "plan") {
           setBolShowModalPlan(true);      // HU7 — plan activo excedido
         } else {
@@ -54,24 +54,36 @@ export const PropertyActions = () => {
         return;
       }
 
-      // Sin límite → limpiar session y navegar
-      sessionStorage.removeItem("caracteristicasInmueble");
-      sessionStorage.removeItem("caracteristicasInmuebleUsuario");
-      sessionStorage.removeItem("informacionComercialDraft");
-      sessionStorage.removeItem("informacionComercialDraftUsuario");
-      sessionStorage.removeItem("informacionComercial");
-      sessionStorage.removeItem("videoUrl");
-      sessionStorage.removeItem("imageUploader_userInteracted");
-      router.push("/publicacion/informacion-comercial");
+      // ✅ FIX: Limpiar exactamente las variables que usa el Formulario Dinámico
+      const KEYS_TO_CLEAN = [
+        'publicacion_currentStep', 
+        'publicacion_completedSteps', 
+        'datosAviso', 
+        'categoriaYEstado', 
+        'ubicacion', 
+        'caracteristicasDetalle', 
+        'imagenesPropiedad_interacted', 
+        'caracteristicasImagenesPreview', 
+        'caracteristicasImagenesNombres', 
+        'videoPropiedad', 
+        'descripcionPropiedad', 
+        'imagenesIniciales'
+      ];
+      
+      KEYS_TO_CLEAN.forEach(k => { 
+        try { sessionStorage.removeItem(k) } catch { } 
+      });
+
+      // ✅ FIX: Redirigir a la ruta correcta del nuevo formulario sin 404
+      router.push("/publicacion/formularioPublicacion");
 
     } catch (error) {
       console.error("Error verificando publicaciones:", error);
-      router.push("/publicacion/informacion-comercial");
+      router.push("/publicacion/formularioPublicacion");
     } finally {
       setBolChecking(false);
     }
   };
-
   return (
     <>
       <footer className="flex flex-row justify-between items-center gap-3 pt-10 border-t border-black/10">

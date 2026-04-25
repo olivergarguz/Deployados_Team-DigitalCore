@@ -60,9 +60,14 @@ export const CaracteristicaCard = ({ strNombre, strDetalle }: CaracteristicaItem
       {strNombre}
     </h4>
     <div className="flex-1 flex items-center justify-center w-full">
-      {strDetalle && (
+      {/* FIX: Renderizado condicional para mostrar "Sin descripción" si el campo está vacío */}
+      {strDetalle && strDetalle.trim() !== "" ? (
         <p className="text-sm text-[#2E2E2E] leading-relaxed text-center">
           {strDetalle}
+        </p>
+      ) : (
+        <p className="text-sm text-[#2E2E2E]/50 italic leading-relaxed text-center">
+          Sin descripción
         </p>
       )}
     </div>
