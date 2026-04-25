@@ -80,7 +80,8 @@ export const publicacionSchema = z.object({
   // Paso 6 — Características Extras (opcional, máx 4, IDs de tabla Caracteristica)
   caracteristicasExtras: z.array(
     z.object({
-      id_caracteristica: z.number().int().min(1),
+      id_caracteristica: z.number().int().min(0),
+      titulo: z.string().min(1, 'El título de la característica es obligatorio.'),
       detalle:           z.string().max(100).optional().nullable(),
     })
   ).max(4, 'Máximo 4 características extras.').optional().default([]),
