@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
-import { verify }  from 'jsonwebtoken'
+import { verify } from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
 import { publicacionSchema, TIPO_INMUEBLE_IDS, TIPO_OPERACION_IDS, DEPARTAMENTO_CIUDAD, MONEDA_IDS } from './schema'
 import { subirImagen } from './cloudinary'
@@ -32,12 +32,12 @@ async function getUserIdSeguro(): Promise<string | null> {
 
   // 2. Si no hay JWT, intentamos sacar el ID por NextAuth (Google)
   const session = await getServerSession();
-  
+
   if (session?.user?.email) {
     // Usamos findFirst que es más flexible y le decimos a TS que es un string seguro
     try {
       const usuarioBd = await prisma.usuario.findFirst({
-        where: { email: session.user.email as string }, 
+        where: { email: session.user.email as string },
         select: { id_usuario: true }
       });
       if (usuarioBd) return usuarioBd.id_usuario;
@@ -83,7 +83,7 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
     caracteristicasExtras = []
   }
 
-// 3. Armar payload — lee tanto Google como JWT
+  // 3. Armar payload — lee tanto Google como JWT
   const rawIdUsuario = await getUserIdSeguro()
 
   const payload = {
@@ -146,17 +146,17 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
     where: { id_usuario: d.id_usuario }, // Ya no necesitamos el "!" porque ya validamos que no es null
     select: { cant_publicaciones_restantes: true },
   })
-  
+
   if (!usuario || (usuario.cant_publicaciones_restantes ?? 0) <= 0) {
     return { success: false, errors: {}, reason: 'LIMITE_ALCANZADO' }
   }
 
   // 6. Insertar en BD (transacción atómica)
   try {
-    const idCiudad  = DEPARTAMENTO_CIUDAD[d.departamento]
-    const idMoneda  = MONEDA_IDS[d.tipoMoneda]
+    const idCiudad = DEPARTAMENTO_CIUDAD[d.departamento]
+    const idMoneda = MONEDA_IDS[d.tipoMoneda]
     const idTipoInm = TIPO_INMUEBLE_IDS[d.tipoInmueble]
-    const idTipoOp  = TIPO_OPERACION_IDS[d.tipoOperacion]
+    const idTipoOp = TIPO_OPERACION_IDS[d.tipoOperacion]
 
     const resultado = await prisma.$transaction(async (tx) => {
 
@@ -242,13 +242,22 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
 
       // 6e. Características Extras (PublicacionCaracteristica)
       if (d.caracteristicasExtras && d.caracteristicasExtras.length > 0) {
-        for (const caract of d.caracteristicasExtras) {
-          await tx.$executeRaw`
-            INSERT INTO "PublicacionCaracteristica" (id_publicacion, id_caracteristica, detalle_caracteristica)
-            VALUES (${pub.id_publicacion}, ${caract.id_caracteristica}, ${caract.detalle ?? null})
-          `
-        }
-      }
+  for (const caract of d.caracteristicasExtras) {
+  // Insertamos/Buscamos en la tabla maestra 'Caracteristica' por NOMBRE
+  const [feature]: any = await tx.$queryRaw`
+    INSERT INTO "Caracteristica" (nombre)
+    VALUES (${caract.titulo})
+    ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre
+    RETURNING id
+  `;
+
+  // Usamos el ID que nos devuelva la BD (que será >= 1)
+  await tx.$executeRaw`
+    INSERT INTO "PublicacionCaracteristica" (id_publicacion, id_caracteristica, detalle_caracteristica)
+    VALUES (${pub.id_publicacion}, ${feature.id}, ${caract.detalle ?? null})
+  `;
+}
+}
 
       // 6f. El descuento de publicaciones restantes y el incremento de
       //     publicaciones_hechas lo maneja un trigger en la base de datos..
