@@ -9,8 +9,10 @@ interface ImagenesFormProps {
   onBack:           () => void
   submitRef:        React.MutableRefObject<(() => void) | null>
   onImagesChange:   (files: File[]) => void
+  // Modo edición:
   imagenesIniciales?: string[]
   onUrlsChange?:      (urlsQueQuedan: string[], urlsABorrar: string[]) => void
+  //key única de sesión generada por el padre
   sessionKey: string
 }
 
@@ -41,6 +43,7 @@ export function ImagenesForm({
   const inputRef                = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
+  // Registrar trigger de validación
   useEffect(() => {
     submitRef.current = () => {
       if (urlsExistentes.length > 0 || values.imagenes.length > 0) {
@@ -52,10 +55,12 @@ export function ImagenesForm({
     return () => { submitRef.current = null }
   }, [handleSubmit, onNext, submitRef, urlsExistentes, values.imagenes])
 
+  // Notificar files nuevos al padre
   useEffect(() => {
     onImagesChange(values.imagenes)
   }, [values.imagenes, onImagesChange])
 
+  // Notificar URLs al padre
   useEffect(() => {
     onUrlsChange?.(urlsExistentes, urlsABorrar)
   }, [urlsExistentes, urlsABorrar, onUrlsChange])
@@ -84,16 +89,6 @@ export function ImagenesForm({
 
   const hasFiles  = totalCount > 0
   const showError = (touched && !!errors.imagenes) || !!fieldError
-
-  // Clases responsivas para miniaturas:
-  // mobile  → w-16 h-12  (64×48px)  — wrap en 3+2
-  // desktop → w-28 h-20  (112×80px) — fila única
-  const thumbClass = `
-    relative rounded-lg overflow-hidden flex-shrink-0 transition-all
-    w-16 h-12
-    sm:w-24 sm:h-16
-    md:w-28 md:h-20
-  `
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -147,16 +142,25 @@ export function ImagenesForm({
       {hasFiles && (
         <div className="flex flex-col gap-3 flex-1">
 
-          {/* Imagen principal */}
+          {/* Imagen principal — centrada, sin cortes */}
           <div
-            className="relative rounded-xl overflow-hidden"
-            style={{ backgroundColor: '#F4EFE6' }}
+            className="relative rounded-xl overflow-hidden flex-1"
+            style={{
+              minHeight:       '180px',
+              backgroundColor: '#F4EFE6',
+              display:         'flex',
+              alignItems:      'center',
+              justifyContent:  'center',
+            }}
           >
             <img
               src={previewsCombinados[selectedIdx]}
               alt={`Imagen principal ${selectedIdx + 1}`}
-              className="w-full object-contain"
-              style={{ maxHeight: '220px', width: '100%' }}
+              style={{
+                width:     '100%',
+                height:    '180px',
+                objectFit: 'contain',
+              }}
             />
             <button
               type="button"
@@ -182,21 +186,29 @@ export function ImagenesForm({
             </button>
           </div>
 
-          {/* Miniaturas responsivas */}
-          <div className="flex flex-wrap md:flex-nowrap gap-2">
-
+          {/* Miniaturas — altura fija, imagen completa sin cortes */}
+          <div className="flex gap-2">
             {previewsCombinados.map((src, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setSelectedIdx(idx)}
-                className={thumbClass}
+                className="relative rounded-lg overflow-hidden transition-all"
                 style={{
+                  flex:            '1 1 0',
+                  minWidth:        0,
+                  maxWidth:        '100px',
+                  height:          '70px',
                   border:          idx === selectedIdx ? '2px solid #C26E5A' : '2px solid transparent',
                   backgroundColor: '#EDE8E0',
                 }}
               >
-                <img src={src} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-cover" />
+                <img
+                  src={src}
+                  alt={`Miniatura ${idx + 1}`}
+                  className="w-full h-full"
+                  style={{ objectFit: 'contain' }}
+                />
               </button>
             ))}
 
@@ -204,15 +216,19 @@ export function ImagenesForm({
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className={`${thumbClass} flex flex-col items-center justify-center border-2 border-dashed gap-0.5`}
+                className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed gap-0.5 transition-colors hover:border-[#C26E5A]"
                 style={{
+                  flex:            '1 1 0',
+                  minWidth:        0,
+                  maxWidth:        '100px',
+                  height:          '70px',
                   borderColor:     '#D4B8AE',
                   backgroundColor: '#EDE8E0',
                 }}
               >
-                <span className="text-lg leading-none text-[#C26E5A] font-light">+</span>
-                <span className="text-[9px] text-[#C26E5A] font-medium leading-none">Insertar</span>
-                <span className="text-[9px] text-[#C26E5A] font-medium leading-none">Imagen</span>
+                <span className="text-xl leading-none text-[#C26E5A] font-light">+</span>
+                <span className="text-[11px] text-[#C26E5A] font-medium leading-tight">Insertar</span>
+                <span className="text-[11px] text-[#C26E5A] font-medium leading-tight">Imagen</span>
               </button>
             )}
           </div>
@@ -232,11 +248,10 @@ export function ImagenesForm({
         }}
       />
 
-      {showError && !hasFiles && (
-        <span className="text-red-500 text-xs">
-          {fieldError ?? errors.imagenes}
-        </span>
-      )}
+      {/* Error — visible siempre que haya, con o sin imágenes */}
+      <span className="text-red-500 text-xs min-h-[16px] block">
+  {showError ? (fieldError ?? errors.imagenes) : ''}
+</span>
     </div>
   )
 }

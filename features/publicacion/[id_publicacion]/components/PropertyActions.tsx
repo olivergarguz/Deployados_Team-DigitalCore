@@ -8,6 +8,15 @@
  * @param bolChecking - Estado booleano que muestra el estado de carga y deshabilita el botón de publicación durante la verificación
  * @return JSX con los botones responsivos de acción y el componente FreePublicationLimitModal
  */
+/**
+ * Dev: Gustavo Montaño
+ * Fecha: 25/04/2026
+ * Update: Fix Corrección de ruta (/publicacion/formularioPublicacion) y limpieza estricta de sessionStorage.
+ * Funcionalidad: Footer de acciones para ver historial o publicar nuevo inmueble validando límites.
+ * @param {void} No recibe parámetros (usa contexto de autenticación).
+ * @return {JSX.Element} Botones responsivos y modales de límites.
+ */
+
 "use client";
 
 import { useRouter }          from "next/navigation";
@@ -36,7 +45,7 @@ export const PropertyActions = () => {
 
   const handleNuevaPublicacion = async () => {
     if (!user) {
-      // ✅ FIX: Ruta correcta del nuevo formulario dinámico
+      // FIX: Ruta correcta del nuevo formulario dinámico
       router.push("/publicacion/formularioPublicacion");
       return;
     }
@@ -54,7 +63,7 @@ export const PropertyActions = () => {
         return;
       }
 
-      // ✅ FIX: Limpiar exactamente las variables que usa el Formulario Dinámico
+      // FIX: Limpiar exactamente las variables que usa el Formulario Dinámico
       const KEYS_TO_CLEAN = [
         'publicacion_currentStep', 
         'publicacion_completedSteps', 
@@ -74,7 +83,7 @@ export const PropertyActions = () => {
         try { sessionStorage.removeItem(k) } catch { } 
       });
 
-      // ✅ FIX: Redirigir a la ruta correcta del nuevo formulario sin 404
+      // FIX: Redirigir a la ruta correcta del nuevo formulario sin 404
       router.push("/publicacion/formularioPublicacion");
 
     } catch (error) {
@@ -84,6 +93,7 @@ export const PropertyActions = () => {
       setBolChecking(false);
     }
   };
+
   return (
     <>
       <footer className="flex flex-row justify-between items-center gap-3 pt-10 border-t border-black/10">
@@ -112,7 +122,7 @@ export const PropertyActions = () => {
         onBack={() => setBolShowModalGratuito(false)}
       />
 
-      {/* HU7 — Modal plan activo excedido (nuevo) */}
+      {/* HU7 — Modal plan activo excedido */}
       <PlanLimitModal
         bolOpen={bolShowModalPlan}
         onBack={() => setBolShowModalPlan(false)}

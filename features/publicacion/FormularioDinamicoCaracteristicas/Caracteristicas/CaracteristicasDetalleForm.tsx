@@ -31,16 +31,11 @@ const IconBox = ({ icon, disabled }: { icon: React.ReactNode; disabled?: boolean
     style={{
       width: '42px',
       height: '42px',
-      borderRadius: '8px',
-      border: '1px solid',
-      borderColor: disabled ? '#E0DDD6' : '#D4CFC6',
-      backgroundColor: disabled ? '#F1EFE8' : '#ffffff',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
       opacity: disabled ? 0.5 : 1,
-      transition: 'background-color 0.2s, opacity 0.2s',
     }}
   >
     {icon}
@@ -84,13 +79,13 @@ export function CaracteristicasDetalleForm({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-5" style={{ paddingTop: '12px' }}>
 
-      <p className="text-sm font-medium text-[#1A1714]">
+      <p className="text-sm font-semibold text-[#1A1714]">
         Detalle las Características de su propiedad
       </p>
 
-      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
 
         {/* Habitaciones */}
         <div className="flex flex-col gap-1">

@@ -2,22 +2,17 @@
 
 import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
-import { verify } from 'jsonwebtoken'
+import { verify }  from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
 import { publicacionSchema, TIPO_INMUEBLE_IDS, TIPO_OPERACION_IDS, DEPARTAMENTO_CIUDAD, MONEDA_IDS } from './schema'
 import { subirImagen } from './cloudinary'
 import { SK } from './sessionKeys'
 
-// Tipo de respuesta
 type ActionResult =
   | { success: true; idPublicacion: number }
   | { success: false; errors: Record<string, string[]>; reason?: string }
 
-// Helper: lee el id_usuario desde la cookie auth_token (JWT).
-// Helper: lee el id_usuario desde JWT manual o desde Google (NextAuth)
-// Helper: lee el id_usuario desde JWT manual o desde Google (NextAuth)
 async function getUserIdSeguro(): Promise<string | null> {
-  // 1. Intentamos sacar el ID por JWT manual
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth_token')?.value
@@ -30,11 +25,8 @@ async function getUserIdSeguro(): Promise<string | null> {
     console.error("Error JWT:", error);
   }
 
-  // 2. Si no hay JWT, intentamos sacar el ID por NextAuth (Google)
   const session = await getServerSession();
-
   if (session?.user?.email) {
-    // Usamos findFirst que es más flexible y le decimos a TS que es un string seguro
     try {
       const usuarioBd = await prisma.usuario.findFirst({
         where: { email: session.user.email as string },
@@ -48,14 +40,44 @@ async function getUserIdSeguro(): Promise<string | null> {
 
   return null;
 }
-// Helper: convierte 'null' | '' | undefined | número en number | null
+
 function parseIntNullable(raw: FormDataEntryValue | null): number | null {
   if (!raw || raw === 'null' || raw === '') return null
   const n = parseInt(raw as string, 10)
   return isNaN(n) ? null : n
 }
 
-// Action principal
+// Helper: determina si la publicación es gratuita o de plan
+async function determinarGratuito(strUserId: string): Promise<boolean> {
+  const objSuscripcion = await prisma.suscripcion.findUnique({
+    where: { id_usuario: strUserId },
+    select: {
+      fecha_fin: true,
+      PlanPublicacion: { select: { cant_publicaciones: true } },
+    },
+  });
+
+  const hoy = new Date();
+  const tienePlanActivo =
+    objSuscripcion !== null &&
+    objSuscripcion.fecha_fin > hoy &&
+    objSuscripcion.PlanPublicacion?.cant_publicaciones !== null;
+
+  if (!tienePlanActivo) {
+    // Sin plan → siempre gratuita
+    return true;
+  }
+
+  const intPermitidas = objSuscripcion!.PlanPublicacion!.cant_publicaciones!;
+  const intUsadas = await prisma.publicacion.count({
+    where: { id_usuario: strUserId, gratuito: false },
+  });
+
+  // Si aún tiene cupo en el plan → es de pago (gratuito = false)
+  // Si el plan está agotado → usa colchón gratuito (gratuito = true)
+  return intUsadas >= intPermitidas;
+}
+
 export async function publicarInmueble(formData: FormData): Promise<ActionResult> {
 
   // 1. Subir imágenes a Cloudinary
@@ -72,7 +94,7 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
     return { success: false, errors: { imagenes: ['Error al subir imágenes. Intenta de nuevo.'] } }
   }
 
-  // 2. Parsear características extras desde FormData
+  // 2. Parsear características extras
   let caracteristicasExtras: { id_caracteristica: number; detalle?: string | null }[] = []
   try {
     const rawCaract = formData.get('caracteristicasExtras') as string
@@ -83,47 +105,30 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
     caracteristicasExtras = []
   }
 
-  // 3. Armar payload — lee tanto Google como JWT
+  // 3. Armar payload
   const rawIdUsuario = await getUserIdSeguro()
 
   const payload = {
-    // Paso 0
     titulo: formData.get('titulo') as string,
     tipoOperacion: formData.get('tipoOperacion') as string,
     precio: parseFloat(formData.get('precio') as string),
     tipoMoneda: (formData.get('tipoMoneda') ?? 'USD') as 'USD' | 'Bs',
-
-    // Paso 1
     tipoInmueble: formData.get('tipoInmueble') as string,
     estadoConstruccion: parseInt(formData.get('estadoConstruccion') as string, 10),
-
-    // Paso 2
     direccion: formData.get('direccion') as string,
     departamento: formData.get('departamento') as string,
     zona: formData.get('zona') as string,
     lat: formData.get('lat') ? parseFloat(formData.get('lat') as string) : undefined,
     lng: formData.get('lng') ? parseFloat(formData.get('lng') as string) : undefined,
-
-    // Paso 3 — nullable: Terreno → null, campo vacío → null, número → number
     habitaciones: parseIntNullable(formData.get('habitaciones')),
     banios: parseIntNullable(formData.get('banios')),
     garajes: parseIntNullable(formData.get('garajes')),
     plantas: parseIntNullable(formData.get('plantas')),
     superficie: parseFloat((formData.get('superficie') as string).replace(/\./g, '')),
-
-    // Paso 4
     imagenesUrl,
-
-    // Paso 5
     videoUrl: (formData.get('videoUrl') as string) || null,
-
-    // Paso 6
     descripcion: formData.get('descripcion') as string,
-
-    // Paso 6 — Características Extras
     caracteristicasExtras,
-
-    // Usuario — leído desde cookie JWT
     id_usuario: rawIdUsuario,
   }
 
@@ -136,14 +141,14 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
     }
   }
   const d = parsed.data
-  // --- EL GUARDIA DE SEGURIDAD ---
+
   if (!d.id_usuario) {
     return { success: false, errors: { general: ['Debes iniciar sesión para publicar.'] } }
   }
 
-  // 5. Verificación de límite de publicaciones
+  // 5. Verificación de límite + determinar si es gratuita o de plan
   const usuario = await prisma.usuario.findUnique({
-    where: { id_usuario: d.id_usuario }, // Ya no necesitamos el "!" porque ya validamos que no es null
+    where: { id_usuario: d.id_usuario },
     select: { cant_publicaciones_restantes: true },
   })
 
@@ -151,12 +156,15 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
     return { success: false, errors: {}, reason: 'LIMITE_ALCANZADO' }
   }
 
+  // Determinar gratuito ANTES del INSERT para pasárselo al trigger
+  const bolGratuito = await determinarGratuito(d.id_usuario)
+
   // 6. Insertar en BD (transacción atómica)
   try {
-    const idCiudad = DEPARTAMENTO_CIUDAD[d.departamento]
-    const idMoneda = MONEDA_IDS[d.tipoMoneda]
+    const idCiudad  = DEPARTAMENTO_CIUDAD[d.departamento]
+    const idMoneda  = MONEDA_IDS[d.tipoMoneda]
     const idTipoInm = TIPO_INMUEBLE_IDS[d.tipoInmueble]
-    const idTipoOp = TIPO_OPERACION_IDS[d.tipoOperacion]
+    const idTipoOp  = TIPO_OPERACION_IDS[d.tipoOperacion]
 
     const resultado = await prisma.$transaction(async (tx) => {
 
@@ -172,7 +180,7 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
         },
       })
 
-      // 6b. Publicacion — con o sin id_usuario
+      // 6b. Publicacion — ahora incluye gratuito
       const [pub] = d.id_usuario
         ? await tx.$queryRaw<{ id_publicacion: number }[]>`
             INSERT INTO "Publicacion" (
@@ -180,7 +188,8 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
               habitaciones, banos, garajes, plantas,
               id_tipo_inmueble, id_tipo_operacion,
               id_estado_construccion,
-              id_ubicacion, id_moneda, id_usuario
+              id_ubicacion, id_moneda, id_usuario,
+              gratuito
             ) VALUES (
               ${d.titulo},
               ${d.descripcion},
@@ -195,7 +204,8 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
               ${d.estadoConstruccion},
               ${ubicacion.id_ubicacion},
               ${idMoneda},
-              ${d.id_usuario}::uuid
+              ${d.id_usuario}::uuid,
+              ${bolGratuito}
             )
             RETURNING id_publicacion
           `
@@ -205,7 +215,8 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
               habitaciones, banos, garajes, plantas,
               id_tipo_inmueble, id_tipo_operacion,
               id_estado_construccion,
-              id_ubicacion, id_moneda
+              id_ubicacion, id_moneda,
+              gratuito
             ) VALUES (
               ${d.titulo},
               ${d.descripcion},
@@ -219,7 +230,8 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
               ${idTipoOp},
               ${d.estadoConstruccion},
               ${ubicacion.id_ubicacion},
-              ${idMoneda}
+              ${idMoneda},
+              ${bolGratuito}
             )
             RETURNING id_publicacion
           `
@@ -240,27 +252,18 @@ export async function publicarInmueble(formData: FormData): Promise<ActionResult
         `
       }
 
-      // 6e. Características Extras (PublicacionCaracteristica)
+      // 6e. Características Extras
       if (d.caracteristicasExtras && d.caracteristicasExtras.length > 0) {
-  for (const caract of d.caracteristicasExtras) {
-  // Insertamos/Buscamos en la tabla maestra 'Caracteristica' por NOMBRE
-  const [feature]: any = await tx.$queryRaw`
-    INSERT INTO "Caracteristica" (nombre)
-    VALUES (${caract.titulo})
-    ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre
-    RETURNING id
-  `;
-
-  // Usamos el ID que nos devuelva la BD (que será >= 1)
-  await tx.$executeRaw`
-    INSERT INTO "PublicacionCaracteristica" (id_publicacion, id_caracteristica, detalle_caracteristica)
-    VALUES (${pub.id_publicacion}, ${feature.id}, ${caract.detalle ?? null})
-  `;
-}
-}
+        for (const caract of d.caracteristicasExtras) {
+          await tx.$executeRaw`
+            INSERT INTO "PublicacionCaracteristica" (id_publicacion, id_caracteristica, detalle_caracteristica)
+            VALUES (${pub.id_publicacion}, ${caract.id_caracteristica}, ${caract.detalle ?? null})
+          `
+        }
+      }
 
       // 6f. El descuento de publicaciones restantes y el incremento de
-      //     publicaciones_hechas lo maneja un trigger en la base de datos..
+      //     publicaciones_hechas lo maneja el trigger en la base de datos.
 
       return pub
     })

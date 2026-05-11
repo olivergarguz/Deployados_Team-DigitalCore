@@ -9,6 +9,14 @@
  *                y el título del inmueble.
  * @return JSX.Element visible en resoluciones de pantalla pequeñas y medianas (hasta lg).
  */
+/**
+ * Dev: Gustavo Montaño
+ * Fecha: 25/04/2026
+ * Update: Fix Implementación exclusiva de 'mailto:' para forzar apertura de la app de Gmail en móviles.
+ * Funcionalidad: Vista móvil de la tarjeta de contacto con botones apilados (WhatsApp y Correo).
+ * @param {ContactoProps} props - Datos del propietario y título del inmueble.
+ * @return {JSX.Element} Vista de contacto adaptada a pantallas pequeñas.
+ */
 "use client";
 
 import React from "react";

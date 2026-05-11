@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * @Dev: Gabriel Paredes
+ * @Dev: Gabriel Paredes.
  * @Fecha: 10/05/2026
  * @Funcionalidad: Modal para compartir la publicación del inmueble.
  *
@@ -18,7 +18,7 @@
  */
 /**
  * @Dev: Marcela C.
- * @Fecha: 10/05/2026
+ * @Fecha: 10/05/2026.
  * @Funcionalidad: Llamado de API para registrar la compartida
  */
 
