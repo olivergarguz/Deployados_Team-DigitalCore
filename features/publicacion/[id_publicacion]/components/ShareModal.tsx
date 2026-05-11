@@ -4,24 +4,12 @@
  * @Dev: Gabriel Paredes.
  * @Fecha: 10/05/2026
  * @Funcionalidad: Modal para compartir la publicación del inmueble.
- *
- * FIXES aplicados:
- *  1. URL limpia → se deriva de window.location.href eliminando solo los
- *     query params, así respeta la ruta completa de Next.js (incluyendo
- *     segmentos intermedios como /Vista_del_Inmueble/). Evita el 404.
- *  2. Facebook sharer → usa la URL limpia (sin UTM) como parámetro "u"
- *     para evitar doble encoding y mejorar la compatibilidad.
- *  3. UTM solo viaja en los href de las redes sociales, nunca en la URL
- *     que se copia ni en la que se muestra.
- *  4. id_publicacion se mantiene para otros usos (analytics, etc.) pero
- *     ya NO se usa para reconstruir la URL manualmente.
  */
 /**
  * @Dev: Marcela C.
  * @Fecha: 10/05/2026.
  * @Funcionalidad: Llamado de API para registrar la compartida
  */
-
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -87,48 +75,23 @@ interface ShareModalProps {
 }
 
 /* ─── Helpers ───────────────────────────────────────────────── */
-
-/**
- * URL LIMPIA — deriva la URL actual del navegador eliminando query params y
- * hash. Así respeta la ruta completa de Next.js sin importar cuántos
- * segmentos dinámicos tenga (ej: /publicacion/Vista_del_Inmueble/198).
- *
- * FIX: antes se reconstruía manualmente como
- *   `${origin}/publicacion/${id_publicacion}`
- * lo que ignoraba los segmentos intermedios y causaba un 404.
- */
 function fnBuildUrlLimpia(): string {
   if (typeof window === "undefined") return "";
-  // Tomamos origin + pathname, descartando ?query y #hash
   return `${window.location.origin}${window.location.pathname}`;
 }
 
-/**
- * URL CON UTM — solo para los href de las redes sociales.
- * Se construye sobre la URL limpia para heredar la ruta correcta.
- */
 function fnBuildUrlUtm(): string {
   return `${fnBuildUrlLimpia()}?utm_source=share_btn`;
 }
 
-/** Trunca el texto para X dejando 23 chars fijos para t.co + 1 espacio */
 function fnTruncateParaX(titulo: string): string {
   const MAX = 280 - 23 - 1;
   if (titulo.length <= MAX) return titulo;
   return titulo.slice(0, MAX - 3) + "...";
 }
 
-/**
- * Abre ventana nueva y devuelve false SOLO si fue bloqueada por el navegador.
- *
- * FIX: algunos navegadores devuelven un objeto window con .closed = true
- * inmediatamente para dominios externos (Facebook, X) aunque la ventana
- * sí se abrió. Por eso ya no usamos .closed como indicador — solo
- * verificamos que window.open no haya devuelto null/undefined.
- */
 function fnOpenWindow(url: string): boolean {
   const w = window.open(url, "_blank", "noopener,noreferrer");
-  // null o undefined = popup bloqueado. Cualquier objeto = ventana abierta.
   return w != null;
 }
 
@@ -140,24 +103,23 @@ export default function ShareModal({
   onClose,
 }: ShareModalProps) {
   const [estadoCopia, setEstadoCopia] = useState<EstadoCopia>("idle");
-  const [estadoFb, setEstadoFb] = useState<"idle" | "copiado">("idle");
   const [msgError, setMsgError] = useState<string | null>(null);
   const [sinConexion, setSinConexion] = useState(
-  () => typeof navigator !== "undefined" && !navigator.onLine
-);
+    () => typeof navigator !== "undefined" && !navigator.onLine
+  );
   const refOverlay = useRef<HTMLDivElement>(null);
 
   /* Detectar conexión */
   useEffect(() => {
-  const fnOn = () => setSinConexion(false);
-  const fnOff = () => setSinConexion(true);
-  window.addEventListener("online", fnOn);
-  window.addEventListener("offline", fnOff);
-  return () => {
-    window.removeEventListener("online", fnOn);
-    window.removeEventListener("offline", fnOff);
-  };
-}, []);
+    const fnOn = () => setSinConexion(false);
+    const fnOff = () => setSinConexion(true);
+    window.addEventListener("online", fnOn);
+    window.addEventListener("offline", fnOff);
+    return () => {
+      window.removeEventListener("online", fnOn);
+      window.removeEventListener("offline", fnOff);
+    };
+  }, []);
 
   /* Cerrar con Escape */
   useEffect(() => {
@@ -168,48 +130,23 @@ export default function ShareModal({
     return () => document.removeEventListener("keydown", fn);
   }, [onClose]);
 
-  /* ── URLs ──────────────────────────────────────────────────────
-   *
-   * strUrlLimpia: lo que se muestra y se copia. Deriva de window.location
-   *   para respetar la ruta completa (fix Bug 1).
-   *
-   * strUrlUtm: solo va en los href de redes sociales.
-   *
-   * FIX Facebook (Bug 2): el sharer de Facebook recibe strUrlLimpia (sin UTM)
-   *   como parámetro "u". Usar la URL con UTM provocaba doble encoding y
-   *   que el og:scraper de Facebook no encontrara la página correctamente.
-   *   En producción, Facebook lee los og:tags de la URL limpia.
-   *   (En localhost Facebook no puede rastrear og:tags de todas formas
-   *   porque el dominio no es público, pero el enlace sí aparece en el
-   *   cuadro de texto del sharer.)
-   */
+  /* ── URLs ── */
   const strUrlLimpia = fnBuildUrlLimpia();
-  //llamado a API para registrar la compartida
-  const fnRegistrarCompartida = () => {
-  fetch(`/api/publicacion/${id_publicacion}/compartir`, {
-    method: "POST",
-  }).catch((error) => console.error("Error registrando compartida:", error));
-  };
   const strUrlUtm = fnBuildUrlUtm();
-
-  // Para Facebook usamos la URL limpia encodeada (sin UTM) — evita doble encoding
   const strUrlLimpiaEnc = encodeURIComponent(strUrlLimpia);
-  // Para el resto de redes usamos la URL con UTM
   const strUrlUtmEnc = encodeURIComponent(strUrlUtm);
-
   const strTituloX = fnTruncateParaX(titulo);
   const strTextoEnc = encodeURIComponent(`¡Mira esta propiedad: ${strTituloX}!`);
   const strTextoWa = encodeURIComponent(`¡Mira esta propiedad! ${strUrlUtm}`);
 
-  /*
-   * REDES SOCIALES
-   * ─────────────────────────────────────────────────────────────
-   * Facebook: sharer/sharer.php con parámetro "u" = URL limpia (sin UTM).
-   *   • No requiere app_id.
-   *   • Evita doble encoding que ocurría al pasar una URL con query params.
-   *   • En producción (dominio público) Facebook precargará og:tags.
-   *   • En localhost el enlace igual aparece en el campo de texto del sharer.
-   */
+  /* Llamado a API para registrar la compartida */
+  const fnRegistrarCompartida = () => {
+    fetch(`/api/publicacion/${id_publicacion}/compartir`, {
+      method: "POST",
+    }).catch((error) => console.error("Error registrando compartida:", error));
+  };
+
+  /* ── Redes sociales ── */
   const arrRedes = [
     {
       nombre: "Whatsapp",
@@ -219,12 +156,9 @@ export default function ShareModal({
     {
       nombre: "Facebook",
       icono: <IconFacebook />,
-      /*
-       * sharer.php con parámetro "u" = URL limpia sin UTM.
-       * dialog/feed requiere app_id registrado → da error en dominios no
-       * registrados. sharer.php es el único endpoint público sin app_id.
-       * El enlace aparece precargado en el compositor de Facebook.
-       */
+      // sharer.php abre directamente el compositor de Facebook con la
+      // publicación precargada. Funciona sin app_id registrado.
+      // En producción Facebook leerá los og:tags y mostrará la vista previa.
       href: `https://www.facebook.com/sharer/sharer.php?u=${strUrlLimpiaEnc}`,
     },
     {
@@ -239,65 +173,29 @@ export default function ShareModal({
     },
   ];
 
-  /* Abrir red social — sin mostrar aviso de popup al usuario */
+  /* Abrir red social */
   const fnCompartirRed = (href: string) => {
     if (sinConexion) {
-      setMsgError(
-        "Sin conexión a Internet. Verifica tu red e intenta de nuevo."
-      );
+      setMsgError("Sin conexión a Internet. Verifica tu red e intenta de nuevo.");
       return;
     }
     if (!disponible) {
-      setMsgError(
-        "Esta publicación ya no está disponible y no puede ser difundida."
-      );
+      setMsgError("Esta publicación ya no está disponible y no puede ser difundida.");
       return;
     }
     setMsgError(null);
-    fnRegistrarCompartida(); // Llamado a API para registrar la compartida
+    fnRegistrarCompartida();
     fnOpenWindow(href);
-  };
-
-  /**
-   * Facebook: Meta eliminó el soporte de sharer.php y dialog/feed sin app_id
-   * registrada. La única alternativa funcional sin registro es:
-   *   1. Copiar la URL al portapapeles automáticamente.
-   *   2. Abrir facebook.com para que el usuario cree la publicación y pegue.
-   * El botón muestra feedback visual ("¡Enlace copiado! Pégalo en Facebook").
-   */
-  const fnCompartirFacebook = async () => {
-    if (sinConexion) { setMsgError("Sin conexión a Internet. Verifica tu red e intenta de nuevo."); return; }
-    if (!disponible) { setMsgError("Esta publicación ya no está disponible y no puede ser difundida."); return; }
-    setMsgError(null);
-    fnRegistrarCompartida(); // Llamado a API para registrar la compartida
-    try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(strUrlLimpia);
-      } else {
-        const el = document.createElement("textarea");
-        el.value = strUrlLimpia;
-        el.style.cssText = "position:fixed;opacity:0";
-        document.body.appendChild(el);
-        el.focus(); el.select();
-        document.execCommand("copy");
-        document.body.removeChild(el);
-      }
-    } catch { /* silencioso — igual abrimos Facebook */ }
-    setEstadoFb("copiado");
-    setTimeout(() => setEstadoFb("idle"), 3000);
-    fnOpenWindow("https://www.facebook.com");
   };
 
   /* Copiar enlace */
   const fnCopiar = async () => {
     if (!disponible) {
-      setMsgError(
-        "Esta publicación ya no está disponible y no puede ser difundida."
-      );
+      setMsgError("Esta publicación ya no está disponible y no puede ser difundida.");
       return;
     }
     setMsgError(null);
-    fnRegistrarCompartida(); // Llamado a API para registrar la compartida
+    fnRegistrarCompartida();
     try {
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(strUrlLimpia);
@@ -316,9 +214,7 @@ export default function ShareModal({
       setTimeout(() => setEstadoCopia("idle"), 2000);
     } catch {
       setEstadoCopia("error");
-      setMsgError(
-        "No se pudo copiar el enlace. Por favor, cópialo manualmente."
-      );
+      setMsgError("No se pudo copiar el enlace. Por favor, cópialo manualmente.");
       setTimeout(() => setEstadoCopia("idle"), 3000);
     }
   };
@@ -329,7 +225,7 @@ export default function ShareModal({
     fnCopiar();
   };
 
-  /* ── Render ─────────────────────────────────────────────────── */
+  /* ── Render ── */
   return (
     <div
       ref={refOverlay}
@@ -386,16 +282,11 @@ export default function ShareModal({
           </div>
         )}
 
-        {/* ── Copiar enlace ────────────────────────────────────── */}
+        {/* ── Copiar enlace ── */}
         <p className="text-sm font-semibold text-[#2E2E2E]/70 mb-2">
           Copiar enlace
         </p>
         <div className="flex items-center gap-2 mb-5">
-          {/*
-           * ENLACE CLICKEABLE — muestra la URL limpia y abre la publicación
-           * en una pestaña nueva. Usa strUrlLimpia (sin UTM) para no exponer
-           * parámetros de tracking al usuario.
-           */}
           <a
             href={strUrlLimpia}
             target="_blank"
@@ -416,7 +307,6 @@ export default function ShareModal({
             <span className="truncate">{strUrlLimpia}</span>
           </a>
 
-          {/* Botón copiar */}
           {estadoCopia === "error" ? (
             <button
               onClick={fnReintentar}
@@ -458,28 +348,16 @@ export default function ShareModal({
           )}
         </div>
 
-        {/* ── Redes sociales ───────────────────────────────────── */}
+        {/* ── Redes sociales ── */}
         <p className="text-sm font-semibold text-[#2E2E2E]/70 mb-3">
           Compartir en
         </p>
-
-        {/* Tooltip Facebook */}
-        {estadoFb === "copiado" && (
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-300 text-blue-700 rounded-lg px-3 py-2 mb-3 text-sm">
-            <Check className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>¡Enlace copiado! Pégalo en tu publicación de Facebook.</span>
-          </div>
-        )}
 
         <div className="grid grid-cols-4 gap-2">
           {arrRedes.map((red) => (
             <button
               key={red.nombre}
-              onClick={
-                red.nombre === "Facebook"
-                  ? fnCompartirFacebook
-                  : () => fnCompartirRed(red.href)
-              }
+              onClick={() => fnCompartirRed(red.href)}
               disabled={!disponible || sinConexion}
               aria-label={`Compartir en ${red.nombre}`}
               className="
