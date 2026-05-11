@@ -156,9 +156,6 @@ export default function ShareModal({
     {
       nombre: "Facebook",
       icono: <IconFacebook />,
-      // sharer.php abre directamente el compositor de Facebook con la
-      // publicación precargada. Funciona sin app_id registrado.
-      // En producción Facebook leerá los og:tags y mostrará la vista previa.
       href: `https://www.facebook.com/sharer/sharer.php?u=${strUrlLimpiaEnc}`,
     },
     {
@@ -238,145 +235,199 @@ export default function ShareModal({
       className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-4"
     >
       <div
-        className="relative w-full max-w-[440px] bg-white rounded-2xl shadow-2xl p-6"
+        className="relative w-full max-w-[440px] rounded-2xl shadow-2xl overflow-hidden"
         style={{ animation: "shareModalIn 0.2s ease-out" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Encabezado */}
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-[#1F3A4D]">
+        {/* ── Header: fondo azul petróleo (--primary = #1F3A4D) ── */}
+        <div
+          className="flex items-center justify-between px-6 py-5"
+          style={{ backgroundColor: "var(--primary)" }}
+        >
+          <h2
+            className="text-lg font-bold"
+            style={{ color: "var(--primary-foreground)" }}
+          >
             Compartir Publicacion
           </h2>
           <button
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-[#2E2E2E]/60 hover:bg-[#F4EFE6] hover:text-[#2E2E2E] transition-colors duration-150"
+            className="w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-150"
+            style={{ color: "var(--primary-foreground)" }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "rgba(244,239,230,0.15)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "transparent")
+            }
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Alerta: publicación no disponible */}
-        {!disponible && (
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg px-3 py-2 mb-4 text-sm">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>
-              Esta publicación ya no está disponible y no puede ser difundida.
-            </span>
-          </div>
-        )}
-
-        {/* Alerta: sin conexión */}
-        {sinConexion && (
-          <div className="flex items-start gap-2 bg-gray-100 border border-gray-300 text-gray-700 rounded-lg px-3 py-2 mb-4 text-sm">
-            <WifiOff className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>Sin conexión a Internet. Verifica tu red para compartir.</span>
-          </div>
-        )}
-
-        {/* Alerta: error general */}
-        {msgError && (
-          <div className="flex items-start gap-2 bg-red-50 border border-red-300 text-red-700 rounded-lg px-3 py-2 mb-4 text-sm">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>{msgError}</span>
-          </div>
-        )}
-
-        {/* ── Copiar enlace ── */}
-        <p className="text-sm font-semibold text-[#2E2E2E]/70 mb-2">
-          Copiar enlace
-        </p>
-        <div className="flex items-center gap-2 mb-5">
-          <a
-            href={strUrlLimpia}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={strUrlLimpia}
-            className="
-              flex-1 flex items-center gap-1.5
-              text-sm px-3 py-2
-              border border-black/10 rounded-lg
-              bg-[#F4EFE6]/60 text-[#1F3A4D]
-              truncate outline-none
-              hover:bg-[#F4EFE6] hover:underline
-              transition-colors duration-150
-              min-w-0
-            "
-          >
-            <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-60" />
-            <span className="truncate">{strUrlLimpia}</span>
-          </a>
-
-          {estadoCopia === "error" ? (
-            <button
-              onClick={fnReintentar}
-              title="Reintentar"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold shrink-0 bg-gray-200 hover:bg-gray-300 text-[#2E2E2E] transition-all duration-200"
+        {/* ── Cuerpo: fondo beige arena (--background = #F4EFE6) ── */}
+        <div
+          className="px-6 pt-5 pb-6"
+          style={{ backgroundColor: "var(--background)" }}
+        >
+          {/* Alerta: publicación no disponible */}
+          {!disponible && (
+            <div
+              className="flex items-start gap-2 rounded-lg px-3 py-2 mb-4 text-sm border"
+              style={{
+                backgroundColor: "rgba(212,163,115,0.15)",
+                borderColor: "var(--warning)",
+                color: "var(--warning-foreground)",
+              }}
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Reintentar</span>
-            </button>
-          ) : (
-            <button
-              onClick={fnCopiar}
-              disabled={estadoCopia === "copiado"}
-              aria-label={
-                estadoCopia === "copiado" ? "Enlace copiado" : "Copiar enlace"
-              }
-              className={`
-                flex items-center gap-1.5 px-3 py-2 rounded-lg
-                text-sm font-bold transition-all duration-200 shrink-0
-                ${
-                  estadoCopia === "copiado"
-                    ? "bg-green-500 text-white cursor-default"
-                    : "bg-[#C26E5A] hover:bg-[#a85a47] text-white cursor-pointer"
-                }
-              `}
-            >
-              {estadoCopia === "copiado" ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Copiado</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  <span>Copiar</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* ── Redes sociales ── */}
-        <p className="text-sm font-semibold text-[#2E2E2E]/70 mb-3">
-          Compartir en
-        </p>
-
-        <div className="grid grid-cols-4 gap-2">
-          {arrRedes.map((red) => (
-            <button
-              key={red.nombre}
-              onClick={() => fnCompartirRed(red.href)}
-              disabled={!disponible || sinConexion}
-              aria-label={`Compartir en ${red.nombre}`}
-              className="
-                flex flex-col items-center gap-1.5
-                p-2 rounded-xl
-                hover:bg-[#F4EFE6] active:scale-95
-                transition-all duration-150
-                disabled:opacity-40 disabled:cursor-not-allowed
-                group
-              "
-            >
-              <div className="transition-transform duration-150 group-hover:scale-110">
-                {red.icono}
-              </div>
-              <span className="text-xs text-[#2E2E2E]/60 group-hover:text-[#2E2E2E] transition-colors leading-tight text-center">
-                {red.nombre}
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                Esta publicación ya no está disponible y no puede ser difundida.
               </span>
-            </button>
-          ))}
+            </div>
+          )}
+
+          {/* Alerta: sin conexión */}
+          {sinConexion && (
+            <div
+              className="flex items-start gap-2 rounded-lg px-3 py-2 mb-4 text-sm border"
+              style={{
+                backgroundColor: "var(--secondary-fund)",
+                borderColor: "var(--card-border)",
+                color: "var(--muted-foreground)",
+              }}
+            >
+              <WifiOff className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>Sin conexión a Internet. Verifica tu red para compartir.</span>
+            </div>
+          )}
+
+          {/* Alerta: error general */}
+          {msgError && (
+            <div
+              className="flex items-start gap-2 rounded-lg px-3 py-2 mb-4 text-sm border"
+              style={{
+                backgroundColor: "rgba(255,16,56,0.07)",
+                borderColor: "var(--destructive)",
+                color: "var(--destructive)",
+              }}
+            >
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{msgError}</span>
+            </div>
+          )}
+
+          {/* ── Copiar enlace ── */}
+          <p
+            className="text-sm font-semibold mb-2"
+            style={{ color: "var(--foreground)" }}
+          >
+            Copiar enlace
+          </p>
+          <div className="flex items-center gap-2 mb-5">
+            <a
+              href={strUrlLimpia}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={strUrlLimpia}
+              className="flex-1 flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg truncate outline-none transition-colors duration-150 min-w-0 hover:underline"
+              style={{
+                border: "1px solid var(--card-border)",
+                backgroundColor: "var(--card-bg)",
+                color: "var(--primary)",
+              }}
+            >
+              <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-60" />
+              <span className="truncate">{strUrlLimpia}</span>
+            </a>
+
+            {estadoCopia === "error" ? (
+              <button
+                onClick={fnReintentar}
+                title="Reintentar"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold shrink-0 transition-all duration-200"
+                style={{
+                  backgroundColor: "var(--secondary-fund)",
+                  color: "var(--foreground)",
+                  border: "1px solid var(--card-border)",
+                }}
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Reintentar</span>
+              </button>
+            ) : (
+              <button
+                onClick={fnCopiar}
+                disabled={estadoCopia === "copiado"}
+                aria-label={
+                  estadoCopia === "copiado" ? "Enlace copiado" : "Copiar enlace"
+                }
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 shrink-0"
+                style={
+                  estadoCopia === "copiado"
+                    ? {
+                        backgroundColor: "var(--success)",
+                        color: "var(--success-foreground)",
+                        cursor: "default",
+                      }
+                    : {
+                        backgroundColor: "var(--secondary)",
+                        color: "var(--secondary-foreground)",
+                        cursor: "pointer",
+                      }
+                }
+              >
+                {estadoCopia === "copiado" ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Copiado</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copiar</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* ── Redes sociales ── */}
+          <p
+            className="text-sm font-semibold mb-3"
+            style={{ color: "var(--foreground)" }}
+          >
+            Compartir en
+          </p>
+
+          <div className="grid grid-cols-4 gap-2">
+            {arrRedes.map((red) => (
+              <button
+                key={red.nombre}
+                onClick={() => fnCompartirRed(red.href)}
+                disabled={!disponible || sinConexion}
+                aria-label={`Compartir en ${red.nombre}`}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed group"
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "var(--secondary-fund)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <div className="transition-transform duration-150 group-hover:scale-110">
+                  {red.icono}
+                </div>
+                <span
+                  className="text-xs leading-tight text-center"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {red.nombre}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
