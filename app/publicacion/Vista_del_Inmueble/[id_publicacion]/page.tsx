@@ -1,13 +1,17 @@
 /**
- * @Dev: Gustavo Montaño
+ * @Dev: Gustavo Montaño.
  * @Fecha: 18/04/2026
- * @Funcionalidad: Vista pública del inmueble (HU2). Renderiza dinámicamente la información 
- *                 de la propiedad, galería, mapa y contacto en una pestaña independiente.
- * @param {Promise<{ id_publicacion: string }>} params - Promesa con los parámetros de la 
- *                                                       ruta dinámica (Next.js App Router).
- * @param {string} params.id_publicacion - Identificador único de la publicación extraído 
- *                                         directamente desde la URL.
- * @return {JSX.Element} Interfaz completa de la vista del inmueble renderizada desde el servidor.
+ * @Funcionalidad: Vista pública del inmueble (HU2).
+ */
+/**
+ * Modificacion - Dev: Gustavo Montaño - Fecha: 25/04/2026
+ * Fix: "Compra" → "Venta" en frontend.
+ */
+/**
+ * Modificacion
+ * @Dev: Gabbo
+ * @Fecha: 10/05/2026
+ * @Funcionalidad: Se habilita ShareModal para prueba del botón compartir.
  */
 import { notFound }          from "next/navigation";
 import { Tag, Ruler }        from "lucide-react";    
@@ -18,7 +22,8 @@ import { ContactCard }       from "@/features/publicacion/[id_publicacion]/compo
 import { LocationMapClient } from "@/features/publicacion/[id_publicacion]/components/LocationMapClient";
 import FavButton             from "@/components/ui/fav";
 import { PublicationStatusBadge } from "@/features/publicacion/[id_publicacion]/components/PublicationStatusBadge";
-import CloseTabButton from "./CloseTabButton";
+import CloseTabButton        from "./CloseTabButton";
+
 export default async function VistaInmueblePage({
   params,
 }: {
@@ -50,10 +55,14 @@ export default async function VistaInmueblePage({
     objPerfil.Ubicacion?.zona,
   ].filter(Boolean).join(", ") || "Dirección no disponible";
   
-  // Extraemos y convertimos a número las coordenadas (si existen)
   const lat = objPerfil.Ubicacion?.latitud ? Number(objPerfil.Ubicacion.latitud) : null;
   const lng = objPerfil.Ubicacion?.longitud ? Number(objPerfil.Ubicacion.longitud) : null;
   const arrImagenes = objPerfil.Imagen?.map((img) => img.url_imagen ?? "") ?? [];
+
+  // ── NUEVO: determinar disponibilidad para ShareModal ──────────
+  const strEstado     = objPerfil.EstadoPublicacion?.nombre_estado ?? "";
+  const bolDisponible = !["Pausada", "Eliminada", "Inactiva"].includes(strEstado);
+  // ─────────────────────────────────────────────────────────────
 
   return (
     <main className="min-h-screen bg-[#F4EFE6] text-[#2E2E2E] p-4 md:p-12 font-[family-name:var(--font-geist-sans)]">
@@ -66,7 +75,7 @@ export default async function VistaInmueblePage({
           <PublicationStatusBadge strEstado={objPerfil.EstadoPublicacion?.nombre_estado} />
         </header>
 
-        {/* Task 4.4 + 4.5 + 4.11: Galería */}
+        {/* Task 4.4 + 4.5 + 4.11: Galería — MODIFICADO: + share */}
         <div className="relative rounded-3xl overflow-hidden">
           <MediaGallery
             id_publicacion={intId.toString()}
@@ -74,8 +83,11 @@ export default async function VistaInmueblePage({
             strVideoId={strVideoId ?? undefined}
             strReelId={strReelId ?? undefined}
             mostrarFav={false}
-          />         
-          {/* BOTÓN SUPERPUESTO (Solo visible en HU2) */}
+            mostrarShare={true}
+            tituloShare={objPerfil.titulo ?? "Propiedad en venta"}
+            disponible={bolDisponible}
+          />
+          {/* BOTÓN FAV SUPERPUESTO */}
           <div className="absolute bottom-14 right-8 z-20">
             <FavButton id_publicacion={intId.toString()} />
           </div>
@@ -83,7 +95,6 @@ export default async function VistaInmueblePage({
 
         {/* Task 4.3: Precio y Superficie */}
         <div className="flex flex-row justify-between items-center py-6 md:py-8 border-y border-black/10 mb-10 gap-2">
-          {/* Bloque Precio */}
           <div className="flex items-start min-[540px]:items-center gap-1.5 md:gap-2 min-w-0">
             <Tag className="w-5 h-5 md:w-6 md:h-6 text-[#2E2E2E] opacity-70 shrink-0 mt-1 min-[540px]:mt-0" />
             <div className="flex flex-col min-[540px]:flex-row min-[540px]:items-center gap-x-1.5 text-[20px] min-[811px]:text-[24px]">
@@ -93,7 +104,6 @@ export default async function VistaInmueblePage({
               </span>
             </div>
           </div>
-          {/* Bloque Superficie */}
           <div className="flex items-start min-[540px]:items-center gap-1.5 md:gap-2 min-w-0">
             <Ruler className="w-5 h-5 md:w-6 md:h-6 text-[#2E2E2E] opacity-70 shrink-0 mt-1 min-[540px]:mt-0" />
             <div className="flex flex-col min-[540px]:flex-row min-[540px]:items-center gap-x-1.5 text-[20px] min-[811px]:text-[24px]">
@@ -169,7 +179,6 @@ export default async function VistaInmueblePage({
           );
         })()}
 
-        {/* Botón Volver al final (Reemplaza a PropertyActions)*/}
         <div className="mt-12 flex justify-start">
           <CloseTabButton className="px-10 py-3 border-2 border-[#C26E5A] text-[#C26E5A] rounded-xl font-bold hover:bg-[#C26E5A]/10 transition-colors">
             Volver
